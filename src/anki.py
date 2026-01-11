@@ -55,3 +55,9 @@ class AnkiClient:
         # Or better, create a custom one if needed.
         # For now, let's assume 'Cloze' model exists.
         pass
+
+    def update_note_fields(self, note_id: int, fields: Dict[str, str]):
+        return self.invoke("updateNoteFields", note={
+            "id": note_id,
+            "fields": fields
+        })
