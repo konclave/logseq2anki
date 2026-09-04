@@ -1,5 +1,6 @@
+import argparse
 import os
-from typing import List
+from typing import List, Optional
 
 from dotenv import load_dotenv
 from rich.console import Console
@@ -7,16 +8,16 @@ from rich.panel import Panel
 from rich.progress import Progress
 from rich.table import Table
 
-from src.anki import AnkiClient
+from src.anki_client import AnkiClient, AnkiError
 from src.llm import LLMClient
-from src.parser import scan_journals
+from src.parser import LogseqNote, scan_journals
 
 load_dotenv()
 
 console = Console()
 
 
-def run():
+def run(collection_path: Optional[str] = None):
     console.print(
         Panel.fit(
             "[bold blue]Logseq to Anki Sync[/bold blue]", subtitle="German Edition"
@@ -24,7 +25,6 @@ def run():
     )
 
     journals_dir = os.path.expanduser("~/Sync/logseq/journals/")
-    model_name = "Cloze"  # Standard Anki Cloze model
 
     # 1. Scan files
     with console.status("[bold green]Scanning Logseq journals..."):
@@ -38,7 +38,7 @@ def run():
     console.print(f"Found [bold]{len(notes)}[/bold] notes in Logseq.")
 
     # 2. Initialize clients
-    anki = AnkiClient()
+    anki = AnkiClient(collection_path)
     llm = LLMClient()
 
     if not llm.is_configured:
@@ -46,14 +46,23 @@ def run():
             "[yellow]Warning: No LLM API keys found (GEMINI_API_KEY or OPENROUTER_API_KEY). Example generation will be skipped.[/yellow]"
         )
 
-    # 3. Check Anki
+    # 3. Open the Anki collection
     try:
-        anki.invoke("version")
-    except Exception:
-        console.print(
-            "[red]Error: Cannot connect to Anki. Make sure Anki is running and AnkiConnect is installed.[/red]"
-        )
+        anki.open()
+    except AnkiError as e:
+        console.print(f"[red]Error: {e}[/red]")
         return
+
+    console.print(f"Using collection [dim]{anki.collection_path}[/dim]")
+
+    try:
+        sync_notes(anki, llm, notes)
+    finally:
+        anki.close()
+
+
+def sync_notes(anki: AnkiClient, llm: LLMClient, notes: List[LogseqNote]) -> None:
+    model_name = "Cloze"  # Standard Anki Cloze model
 
     # Ensure deck exists
     default_deck_prefix = "Logseq::"
@@ -61,7 +70,7 @@ def run():
     anki.create_deck(default_deck_name)
     created_decks = {default_deck_name}
 
-    # 4. Process notes
+    # Process notes
     new_notes_added = 0
     skipped_notes = 0
 
@@ -166,5 +175,21 @@ def run():
     )
 
 
+def main():
+    parser = argparse.ArgumentParser(
+        description="Sync Logseq journal notes into an Anki collection."
+    )
+    parser.add_argument(
+        "--collection",
+        default=None,
+        help=(
+            "Path to collection.anki2. Defaults to $ANKI_COLLECTION, "
+            "then the Anki profile in the standard data directory."
+        ),
+    )
+    args = parser.parse_args()
+    run(args.collection)
+
+
 if __name__ == "__main__":
-    run()
+    main()

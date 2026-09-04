@@ -24,6 +24,7 @@ test:
 	@export PYTHONPATH=$${PYTHONPATH}:. && ./.venv/bin/python tests/test_parser.py
 	@export PYTHONPATH=$${PYTHONPATH}:. && ./.venv/bin/python tests/test_dynamic_decks.py
 	@export PYTHONPATH=$${PYTHONPATH}:. && ./.venv/bin/python tests/test_llm_fallback.py
+	@export PYTHONPATH=$${PYTHONPATH}:. && ./.venv/bin/python tests/test_anki_client.py
 
 # Clean up the virtual environment
 clean:

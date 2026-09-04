@@ -8,7 +8,7 @@ A Python CLI tool that:
 - Scans Logseq journal files (`~/Sync/logseq/journals/*.md`) for notes tagged with `#card #deutsch`
 - Extracts German vocabulary with cloze deletions using `{{cloze translation}}` syntax
 - Supports AI-powered example sentence generation via Gemini or OpenRouter APIs
-- Syncs to Anki via AnkiConnect add-on
+- Syncs to Anki by writing the collection file directly via the official `anki` library (no AnkiConnect, Anki must be closed)
 - Organizes cards into dynamic decks based on tags
 
 ## Build/Test/Lint Commands
@@ -29,6 +29,7 @@ make test
 PYTHONPATH=$PYTHONPATH:. python3 tests/test_parser.py
 PYTHONPATH=$PYTHONPATH:. python3 tests/test_dynamic_decks.py
 PYTHONPATH=$PYTHONPATH:. python3 tests/test_llm_fallback.py
+PYTHONPATH=$PYTHONPATH:. python3 tests/test_anki_client.py
 
 # Check Python version (requires 3.11+)
 python3 --version
@@ -55,7 +56,7 @@ from dotenv import load_dotenv
 from rich.console import Console
 
 # Local imports last
-from src.anki import AnkiClient
+from src.anki_client import AnkiClient
 from src.parser import LogseqNote
 ```
 
@@ -86,17 +87,15 @@ class LogseqNote:
 
 ### Error Handling Patterns
 ```python
-# Network/API operations - use try/catch and check response structure
-def invoke(self, action: str, **params) -> Any:
-    response = requests.post(self.url, json={...})
-    result = response.json()
-    if len(result) != 2:
-        raise Exception("response has an unexpected number of fields")
-    if "error" not in result:
-        raise Exception("response is missing required error field")
-    if result["error"] is not None:
-        raise Exception(result["error"])
-    return result["result"]
+# External resources - wrap library errors in the module's own exception type
+def open(self) -> None:
+    try:
+        self.col = Collection(self.collection_path)
+    except DBError as e:
+        raise CollectionLockedError(
+            f"Cannot open {self.collection_path}: {e} "
+            "Quit the Anki application and try again."
+        ) from e
 
 # File operations - check existence first
 def scan_journals(directory: str) -> List[LogseqNote]:
@@ -166,23 +165,26 @@ def function_name(param1: str, param2: Optional[int] = None) -> ReturnType:
 src/
 ├── main.py          # CLI entry point and orchestration
 ├── parser.py        # Logseq markdown parsing logic
-├── anki.py          # AnkiConnect API client
+├── anki_client.py   # Anki collection access (anki library)
 └── llm.py           # LLM integration (Gemini/OpenRouter)
 
 tests/
 ├── test_parser.py           # Simple parsing tests
 ├── test_dynamic_decks.py    # Deck selection logic
-└── test_llm_fallback.py     # LLM fallback with unittest
+├── test_llm_fallback.py     # LLM fallback with unittest
+└── test_anki_client.py      # Collection reads/writes against a temp collection
 ```
 
 ## Dependencies
+- `anki` - official Anki library, reads and writes the collection file
 - `requests` - HTTP client for API calls
 - `google-genai` - Gemini AI SDK
 - `rich` - CLI formatting and progress
 - `python-dotenv` - Environment variable management
 
 ## Important Notes
-- This project requires Anki to be running with AnkiConnect add-on installed
+- The Anki desktop app must be **closed** while syncing; the collection file is exclusively locked
+- The module is named `anki_client.py`, not `anki.py`, so it does not shadow the installed `anki` package
 - Logseq journals are expected at `~/Sync/logseq/journals/`
 - Uses standard Anki Cloze model format
 - Supports both Gemini and OpenRouter API keys

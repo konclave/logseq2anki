@@ -8,20 +8,18 @@ This application automatically converts Logseq journal notes with cloze deletion
 - Automatically extracts example sentences from Logseq sub-blocks.
 - **AI-Powered:** Generates natural German example sentences using Gemini AI if none are provided in Logseq.
 - Prevents duplicate cards in Anki.
+- Works with Anki closed - writes to the collection file directly, no AnkiConnect.
 - Beautiful CLI interface with progress tracking.
 
 ## Prerequisites
-1. **Anki** must be running.
-2. **AnkiConnect** add-on must be installed in Anki.
-3. **Python 3.11+** installed.
+1. **Anki** installed (the app does **not** need to be running - see below).
+2. **Python 3.11+** installed.
 
-### How to install AnkiConnect
-AnkiConnect is required for this script to communicate with Anki.
-1. Open **Anki**.
-2. Go to **Tools** -> **Add-ons** in the top menu.
-3. Click the **Get Add-ons...** button on the right.
-4. Paste the following code into the text box: `2055492159`.
-5. Click **OK** and restart Anki to complete the installation.
+### Anki must be closed
+The sync writes to your `collection.anki2` file directly through the official `anki`
+library, so no add-on and no running Anki is needed. The collection is an exclusively
+locked database, so **quit the Anki desktop app before syncing** - otherwise the script
+stops with a clear "Quit the Anki application" message and changes nothing.
 
 ## Setup
 1. Clone this repository.
@@ -37,7 +35,15 @@ AnkiConnect is required for this script to communicate with Anki.
 ## Usage
 Run the sync script:
 ```bash
-python3 -m src.main
+make sync
+```
+
+The collection is found automatically: `$ANKI_COLLECTION` if set, otherwise the Anki
+profile in the standard data directory (on macOS
+`~/Library/Application Support/Anki2/User 1/collection.anki2`). Point it somewhere else
+with:
+```bash
+python3 -m src.main --collection "/path/to/collection.anki2"
 ```
 
 ## Note Format in Logseq

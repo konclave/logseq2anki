@@ -10,13 +10,14 @@ dependencies = [
     "google-genai",
     "rich",
     "python-dotenv",
+    "anki>=26.8.1",
 ]
 requires-python = ">=3.11"
 readme = "README.md"
 license = { text = "MIT" } # Or choose a different license
 
 [project.scripts]
-logseq2anki = "src.main:run"
+logseq2anki = "src.main:main"
 
 [build-system]
 requires = ["setuptools>=61.0"]
